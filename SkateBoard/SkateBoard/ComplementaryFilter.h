@@ -6,7 +6,7 @@
 
 #define RAD2DEG(rad)	(double)(rad * 180.0 / PI)
 #define DEG2RAD(deg)	(double)(deg / 180.0 * PI)
-#define GYRO_FACTOR		(double)(0.9)
+#define GYRO_FACTOR		(double)(0.98)
 #define ACCEL_FACTOR	(double)(1 - GYRO_FACTOR)
 
 enum COMPLEMENTARY_ELEMENT

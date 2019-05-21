@@ -33,7 +33,7 @@ public:
 	void init();
 	void implementation();
 	double get(MPU6050_ELEMENT me);
-	void getDatas(double* ax, double* ay, double* az,
-				  double* gx, double* gy, double* gz,
-				  double* _1g);
+	void getDatas(double* _ax, double* _ay, double* _az,
+				  double* _gx, double* _gy, double* _gz,
+				  double* __1g);
 };

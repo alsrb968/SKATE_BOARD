@@ -16,70 +16,28 @@
 #include <avr/power.h>
 #endif
 
-#define SAMPLING_RATE	1 // 10ms
+#define SAMPLING_RATE	1 // 1ms
 
-#define NEOPIXEL_PIN	6
-#define NEOPIXEL_NUM	30
+#define NEOPIXEL_PIN	6 // D6
+#define NEOPIXEL_NUM	30 // LED SIZE 30
 
-#ifdef LEAD_SWITCH_SENSOR
-#define LEAD_SWITCH_PIN 3
-#endif //end LEAD_SWITCH_SENSOR
-
-
-#ifdef LEAD_SWITCH_SENSOR
-const int numReadings = 10;
-uint32_t readings[numReadings];
-int readIndex = 0;
-int total = 0;
-
-bool oldLeadState;
-uint32_t rpm;
-uint32_t startT;
-uint32_t termT;
-const uint32_t oneM = 60000;
-#endif //end LEAD_SWITCH_SENSOR
+#define STYLE_3_AMOUNT	1
 
 double mFilteredAccelX;
-MPU6050 mMPU6050;
+MPU6050 mMPU6050; // SDA:A4, SCL:A5
 ComplementaryFilter mComplementaryFilter(SAMPLING_RATE);
 MovingAverageFilter mMovingAverageFilter(10);
 KalmanFilter mKalmanFilter;
 IntegralTrapezoidal mIntegralTrapezoidal(SAMPLING_RATE);
 Adafruit_NeoPixel mNeoPixel(NEOPIXEL_NUM, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
-
-#ifdef LEAD_SWITCH_SENSOR
-void MovingAverageFilterInit() {
-	int readIndex = 0;
-	int total = 0;
-	for (int i : readings) {
-		i = 0;
-	}
-}
-
-unsigned long MovingAverageFilterRpm(unsigned long rpm) {
-	readIndex %= numReadings;
-	readings[readIndex++] = rpm;
-	if (total < numReadings) total++;
-	uint32_t aver = 0;
-	for (uint32_t i : readings) {
-		aver += i;
-	}
-	aver /= total;
-
-	return aver;
-}
-#endif //end LEAD_SWITCH_SENSOR
+uint32_t mColorValue;
+bool mColorDir;
 
 double SamplingAccel() {
 	mMPU6050.implementation();
 	double ax, ay, az, gx, gy, gz;
-	ax = mMPU6050.get(ACCEL_X);
-	ay = mMPU6050.get(ACCEL_Y);
-	az = mMPU6050.get(ACCEL_Z);
-	gx = mMPU6050.get(GYRO_X);
-	gy = mMPU6050.get(GYRO_Y);
-	gz = mMPU6050.get(GYRO_Z);
-//	mMPU6050.getDatas(&ax, &ay, &az, &gx, &gy, &gz, NULL);
+
+	mMPU6050.getDatas(&ax, &ay, &az, &gx, &gy, &gz, NULL);
 	mComplementaryFilter.implementation(ax, ay, az, gx, gy, gz);
 	double accelXDeg = mComplementaryFilter.get(ACC_ANGLE_X_DEG);
 	double gyroXDeg = mComplementaryFilter.get(GYRO_ANGLE_X_DEG);
@@ -98,78 +56,61 @@ double SamplingAccel() {
 //	Serial.print('\t');
 //	Serial.println(filteredKAL);
 	
-//	Serial.print((filteredKAL));
-//	Serial.print('\t');
-	Serial.println(fabs(filteredKAL));
+	Serial.print(accelXDeg);
+	Serial.print('\t');
+	Serial.println(pitchDeg);
 
 	return fabs(filteredKAL);
 }
 
 // the setup function runs once when you press reset or power the board
 void setup() {
-#ifdef LEAD_SWITCH_SENSOR
-	pinMode(LEAD_SWITCH_PIN, INPUT);
-	oldLeadState = 0;
-	rpm = 0;
-	startT = 0;
-	termT = 0;
-	MovingAverageFilterInit();
-#endif //end LEAD_SWITCH_SENSOR
 	Serial.begin(115200);
 	mMPU6050.init();
 	mNeoPixel.begin(); // This initializes the NeoPixel library.
+
+	mColorValue = 0;
+	mColorDir = false;
 }
 
 // the loop function runs over and over again until power down or reset
 void loop() {
-#ifdef ACC_GYRO_SENSOR
 	delay(SAMPLING_RATE);
 	mFilteredAccelX = SamplingAccel();
 
 	for (int i = 0; i < NEOPIXEL_NUM; i++) {
 #if (NEOPIXEL_STYLE_1 == 1)
-		if (i < ((int)(mFilteredAccelX * 2) % 30))  mNeoPixel.setPixelColor(i, mNeoPixel.Color(255, 255, 255));
-		else            mNeoPixel.setPixelColor(i, mNeoPixel.Color(0, 0, 0));
+		if (i < ((int)(mFilteredAccelX * 2) % NEOPIXEL_NUM)) {
+			mNeoPixel.setPixelColor(i, mNeoPixel.Color(255, 255, 255));
+		}
+		else {
+			mNeoPixel.setPixelColor(i, mNeoPixel.Color(0, 0, 0));
+		}
 #elif (NEOPIXEL_STYLE_2 == 1)
 		double dim = 255.0 / ACC_GYRO_MAX;
 		int res = (int)(mFilteredAccelX * dim) % 255;
 		mNeoPixel.setPixelColor(i, mNeoPixel.Color(res, res, res));
 #elif (NEOPIXEL_STYLE_3 == 1)
-		//TODO:
-#endif
-		mNeoPixel.show();
-	}
-#endif //end ACC_GYRO_SENSOR
-
-#ifdef LEAD_SWITCH_SENSOR  
-	int newLeadState = digitalRead(LEAD_SWITCH_PIN);
-	if (oldLeadState > newLeadState) { //Falling Edge
-		termT = millis() - startT;
-		rpm = MovingAverageFilterRpm(oneM / termT);
-		Serial.println(rpm);
-		startT = millis();
-	}
-	else {
-		if (millis() - startT > 2000) {
-			rpm = MovingAverageFilterRpm(0);
-			Serial.println(rpm);
-			delay(100);
+		if (mColorDir) {
+			mColorValue += STYLE_3_AMOUNT;
+			if (mColorValue > (uint32_t)0xFFFFFF) {
+				mColorValue = (uint32_t)0xFFFFFF;
+				mColorDir = false;
+			}
 		}
-	}
-	oldLeadState = newLeadState;
-
-	for (int i = 0; i < NEOPIXEL_NUM; i++) {
-#if (NEOPIXEL_STYLE_1 == 1)
-		if (i < rpm / 20)  mNeoPixel.setPixelColor(i, mNeoPixel.Color(255, 255, 255));
-		else            mNeoPixel.setPixelColor(i, mNeoPixel.Color(0, 0, 0));
-#elif (NEOPIXEL_STYLE_2 ==1)
-		double dim = 255.0 / 600.0;
-		int res = (int)(rpm * dim);
-		mNeoPixel.setPixelColor(i, mNeoPixel.Color(res, res, res));
-#elif (NEOPIXEL_STYLE_3 == 1)
-		//TODO:
-#endif
+		else {
+			mColorValue -= STYLE_3_AMOUNT;
+			if (mColorValue < (uint32_t)0x000000) {
+				mColorValue = (uint32_t)0;
+				mColorDir = true;
+			}
+		}
+		
+		uint8_t red = (uint8_t)((mColorValue >> 16) & 0xFF) / ACC_GYRO_MAX * (int)mFilteredAccelX;
+		uint8_t green = (uint8_t)((mColorValue >> 8) & 0xFF) / ACC_GYRO_MAX * (int)mFilteredAccelX;
+		uint8_t blue = (uint8_t)(mColorValue & 0xFF) / ACC_GYRO_MAX * (int)mFilteredAccelX;
+		mNeoPixel.setPixelColor(i, mNeoPixel.Color(red, green, blue));
+#endif //end NEOPIXEL_STYLE_N
 		mNeoPixel.show();
 	}
-#endif //end LEAD_SWITCH_SENSOR
 }

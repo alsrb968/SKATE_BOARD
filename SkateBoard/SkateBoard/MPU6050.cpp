@@ -52,13 +52,13 @@ double MPU6050::get(MPU6050_ELEMENT me)
 	return ret;
 }
 
-void MPU6050::getDatas(double* ax, double* ay, double* az, double* gx, double* gy, double* gz, double* _1g)
+void MPU6050::getDatas(double* _ax, double* _ay, double* _az, double* _gx, double* _gy, double* _gz, double* __1g)
 {
-	*ax = this->ax;
-	*ay = this->ay;
-	*az = this->az;
-	*gx = this->gx;
-	*gy = this->gy;
-	*gz = this->gz;
-	*_1g = this->_1g;
+	*_ax = ax;
+	*_ay = ay;
+	*_az = az;
+	*_gx = gx;
+	*_gy = gy;
+	*_gz = gz;
+	*__1g = _1g;
 }
