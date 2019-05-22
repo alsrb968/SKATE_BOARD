@@ -11,6 +11,8 @@
 
 enum COMPLEMENTARY_ELEMENT
 {
+	ACC_ANGLE_X_RAD,
+	ACC_ANGLE_Y_RAD,
 	ACC_ANGLE_X_DEG,
 	ACC_ANGLE_Y_DEG,
 	GYRO_ANGLE_X_DEG,
@@ -25,6 +27,8 @@ class ComplementaryFilter
 {
 private:
 	double dt;
+	double accelAngleXRad;
+	double accelAngleYRad;
 	double accelAngleXDeg;
 	double accelAngleYDeg;
 	double gyroAngleXDeg;
